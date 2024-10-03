@@ -1,0 +1,46 @@
+image:
+  - Visual Studio 2022
+  - Ubuntu2004
+  - macos-sonoma
+environment:
+  matrix:
+    - TARGET: x86_64-pc-windows-msvc
+    - TARGET: i686-pc-windows-msvc
+    - TARGET: x86_64-unknown-linux-gnu
+    - TARGET: x86_64-apple-darwin
+skip_tags: true
+branches:
+  only:
+    - master
+for:
+  -
+    matrix:
+      only:
+        - image: Visual Studio 2022
+    install:
+      - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+      - cmd: rustup-init.exe -yv --default-toolchain --default-host %TARGET%
+      - cmd: set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+    cache:
+      #- '%USERPROFILE%\.cargo'
+  -
+    matrix:
+      only:
+        - image: Ubuntu2004
+    install:
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yv --default-toolchain --default-host x86_64-unknown-linux-gnu
+    cache:
+      #- '/home/appveyor/.cargo'
+  -
+    matrix:
+      only:
+        - image: macos-sonoma
+    install:
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yv --default-toolchain --default-host x86_64-apple-darwin
+    cache:
+      #- '$HOME/.cargo'
+build: false
+test_script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+  
