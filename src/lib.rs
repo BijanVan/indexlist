@@ -407,6 +407,26 @@ impl<T> IndexList<T> {
         }
     }
 
+    /// Removes the last element from the list and returns it.
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut list = indexlist::IndexList::new();
+    /// list.push_back(5);
+    /// assert_eq!(list.pop_back(), Some(5));
+    /// ```
+    pub fn pop_back(&mut self) -> Option<T> {
+        if let Some(tail) = self.tail {
+            let index = self.contents.get(tail).and_then(|e| match e {
+                Occupied(oc) => Some(Index::new(tail, oc.generation)),
+                _ => panic!("Corrupted list"),
+            });
+            self.remove(index?)
+        } else {
+            None
+        }
+    }
+
     /// Removes the first element from the list and returns it.
     ///
     /// # Examples
@@ -997,7 +1017,6 @@ impl<T> Iterator for IterOwn<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fmt::Debug;
 
     fn to_vec_forward<T: Copy>(list: &IndexList<T>) -> Vec<T> {
         let mut result = vec![];
@@ -1013,57 +1032,6 @@ mod tests {
         }
 
         result
-    }
-
-    fn print_entries_forward<T: Debug>(list: &IndexList<T>) {
-        println!(
-            "\nEntries start, head: {:?}, tail: {:?}",
-            list.head, list.tail
-        );
-        let mut iter = list.head;
-        while let Some(next) = iter {
-            match &list.contents[next] {
-                Occupied(oc) => {
-                    iter = oc.next;
-                    print!("Index# {next}: {:?}, ", oc);
-                }
-                _ => assert!(false),
-            }
-        }
-        println!("\nEntries end");
-    }
-
-    fn to_vec_backward<T: Copy>(list: &IndexList<T>) -> Vec<T> {
-        let mut result = vec![];
-        let mut iter = list.tail;
-        while let Some(prev) = iter {
-            match &list.contents[prev] {
-                Occupied(oc) => {
-                    iter = oc.prev;
-                    result.push(oc.item);
-                }
-                _ => assert!(false),
-            }
-        }
-
-        result
-    }
-
-    fn print_entries_backward<T: Debug>(list: &IndexList<T>) {
-        println!(
-            "\nEntries start, head: {:?}, tail: {:?}",
-            list.head, list.tail
-        );
-        let mut iter = list.tail;
-        while let Some(prev) = iter {
-            match &list.contents[prev] {
-                Occupied(oc) => {
-                    iter = oc.prev;
-                }
-                _ => assert!(false),
-            }
-        }
-        println!("\nEntries end");
     }
 
     fn check_invariants<T>(list: &IndexList<T>) {
@@ -1790,6 +1758,37 @@ mod tests {
     }
 
     #[test]
+    fn pop_back() {
+        let mut list = IndexList::new();
+
+        list.push_back(5);
+        list.push_back(10);
+        list.push_back(15);
+
+        assert_eq!(list.pop_back().unwrap(), 15);
+        assert_eq!(list.pop_back().unwrap(), 10);
+        assert_eq!(list.pop_back().unwrap(), 5);
+        
+        check_invariants(&list);
+
+        assert_eq!(
+            list,
+            IndexList {
+                contents: vec![
+                    Entry::Free { next_free: Some(1) },
+                    Entry::Free { next_free: Some(2) },
+                    Entry::Free { next_free: None },
+                ],
+                generation: 3,
+                next_free: Some(0),
+                head: None,
+                tail: None,
+                count: 0,
+            }
+        );
+    }
+
+    #[test]
     fn pop_front() {
         let mut list = IndexList::new();
 
@@ -1800,6 +1799,8 @@ mod tests {
         assert_eq!(list.pop_front().unwrap(), 5);
         assert_eq!(list.pop_front().unwrap(), 10);
         assert_eq!(list.pop_front().unwrap(), 15);
+        
+        check_invariants(&list);
 
         assert_eq!(
             list,
