@@ -73,14 +73,12 @@
 /// let tail = list.push_back(3);
 ///
 /// // Insert 2 before the tail
-/// if let Some(index) = list.next_index(tail) {
-///     list.insert_before(index, 2);
-/// }
-/// assert_eq!(list.to_vec(), vec![1, 2, 3]);
+/// list.insert_before(tail, 2);
+/// assert_eq!(list.iter().copied().collect::<Vec<i32>>(), vec![1, 2, 3]);
 ///
 /// // Insert 0 after the head
 /// list.insert_after(head, 0);
-/// assert_eq!(list.to_vec(), vec![1, 0, 2, 3]);
+/// assert_eq!(list.iter().copied().collect::<Vec<i32>>(), vec![1, 0, 2, 3]);
 /// ```
 ///
 /// ## Removing elements and checking for their absence
@@ -159,7 +157,7 @@ impl<T> Index<T> {
 
 impl<T> Clone for Index<T> {
     fn clone(&self) -> Self {
-        Self::new(self.index, self.generation)
+        *self
     }
 }
 
@@ -184,6 +182,7 @@ impl<T> IndexList<T> {
     ///
     /// # Examples
     /// ```rust
+    /// use indexlist::IndexList;
     /// let list: IndexList<i32> = IndexList::new();
     /// ```
     pub fn new() -> Self {
@@ -194,6 +193,7 @@ impl<T> IndexList<T> {
     ///
     /// # Examples
     /// ```rust
+    /// use indexlist::IndexList;
     /// let list: IndexList<i32> = IndexList::with_capacity(10);
     /// ```
     pub fn with_capacity(capacity: usize) -> Self {
@@ -207,6 +207,7 @@ impl<T> IndexList<T> {
     ///
     /// # Examples
     /// ```rust
+    /// use indexlist::IndexList;
     /// let mut list = indexlist::IndexList::new();
     /// list.push_back(5);
     /// assert_eq!(list.head(), Some(&5));
@@ -224,6 +225,7 @@ impl<T> IndexList<T> {
     ///
     /// # Examples
     /// ```rust
+    /// use indexlist::IndexList;
     /// let mut list = indexlist::IndexList::new();
     /// list.push_back(5);
     /// assert_eq!(list.head_mut(), Some(&mut 5));
@@ -299,11 +301,8 @@ impl<T> IndexList<T> {
                 }
 
                 if let Some(tail) = self.tail {
-                    match &mut self.contents[tail] {
-                        Occupied(oc) => {
-                            oc.next = Some(index);
-                        }
-                        _ => {}
+                    if let Occupied(oc) = &mut self.contents[tail] {
+                        oc.next = Some(index);
                     }
                 }
 
@@ -325,11 +324,8 @@ impl<T> IndexList<T> {
                 }
 
                 if let Some(tail) = self.tail {
-                    match &mut self.contents[tail] {
-                        Occupied(oc) => {
-                            oc.next = Some(last);
-                        }
-                        _ => {}
+                    if let Occupied(oc) = &mut self.contents[tail] {
+                        oc.next = Some(last);
                     }
                 }
                 self.tail = Some(last);
@@ -367,11 +363,8 @@ impl<T> IndexList<T> {
                 }
 
                 if let Some(head) = self.head {
-                    match &mut self.contents[head] {
-                        Occupied(oc) => {
-                            oc.prev = Some(index);
-                        }
-                        _ => {}
+                    if let Occupied(oc) = &mut self.contents[head] {
+                        oc.prev = Some(index);
                     }
                 }
 
@@ -393,11 +386,8 @@ impl<T> IndexList<T> {
                 }
 
                 if let Some(head) = self.head {
-                    match &mut self.contents[head] {
-                        Occupied(oc) => {
-                            oc.prev = Some(last);
-                        }
-                        _ => {}
+                    if let Occupied(oc) = &mut self.contents[head] {
+                        oc.prev = Some(last);
                     }
                 }
                 self.head = Some(last);
@@ -417,8 +407,8 @@ impl<T> IndexList<T> {
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
         if let Some(tail) = self.tail {
-            let index = self.contents.get(tail).and_then(|e| match e {
-                Occupied(oc) => Some(Index::new(tail, oc.generation)),
+            let index = self.contents.get(tail).map(|e| match e {
+                Occupied(oc) => Index::new(tail, oc.generation),
                 _ => panic!("Corrupted list"),
             });
             self.remove(index?)
@@ -437,8 +427,8 @@ impl<T> IndexList<T> {
     /// ```
     pub fn pop_front(&mut self) -> Option<T> {
         if let Some(head) = self.head {
-            let index = self.contents.get(head).and_then(|e| match e {
-                Occupied(oc) => Some(Index::new(head, oc.generation)),
+            let index = self.contents.get(head).map(|e| match e {
+                Occupied(oc) => Index::new(head, oc.generation),
                 _ => panic!("Corrupted list"),
             });
             self.remove(index?)
@@ -550,25 +540,22 @@ impl<T> IndexList<T> {
                 }
                 let oc_next = oc.next;
                 let oc_prev = oc.prev;
-                match oc_prev {
-                    Some(prev) => match self.contents.get_mut(prev) {
-                        Some(e) => match e {
+                if let Some(prev) = oc_prev {
+                    if let Some(e) = self.contents.get_mut(prev) {
+                        match e {
                             Occupied(oc_prev) => oc_prev.next = oc_next,
                             _ => panic!("Corrupted list"),
-                        },
-                        None => {}
-                    },
-                    None => {}
+                        }
+                    }
                 }
-                match oc_next {
-                    Some(next) => match self.contents.get_mut(next) {
-                        Some(e) => match e {
-                            Occupied(oc_next) => oc_next.prev = oc_prev,
-                            _ => panic!("Corrupted list"),
-                        },
-                        None => {}
-                    },
-                    None => {}
+                if let Some(next) = oc_next {
+                    if let Some(e) = self.contents.get_mut(next) {
+                        if let Occupied(oc_next) = e {
+                            oc_next.prev = oc_prev
+                        } else {
+                            panic!("Corrupted list")
+                        }
+                    }
                 }
             }
             _ => {
@@ -783,6 +770,19 @@ impl<T> IndexList<T> {
         self.count
     }
 
+    /// Returns the number of elements in the list.
+    ///
+    /// # Examples
+    /// ```rust
+    /// let mut list = indexlist::IndexList::new();
+    /// let five = list.push_back(5);
+    /// list.remove(five);
+    /// assert_eq!(list.is_empty(), true);
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
     /// Returns a non-consuming iterator over the elements of the list.
     ///
     /// # Examples
@@ -801,7 +801,7 @@ impl<T> IndexList<T> {
                 _ => None,
             }) {
                 Iter {
-                    list: &self,
+                    list: self,
                     index: Some(Index::new(head, generation)),
                 }
             } else {
@@ -809,7 +809,7 @@ impl<T> IndexList<T> {
             }
         } else {
             Iter {
-                list: &self,
+                list: self,
                 index: None,
             }
         }
@@ -1768,7 +1768,7 @@ mod tests {
         assert_eq!(list.pop_back().unwrap(), 15);
         assert_eq!(list.pop_back().unwrap(), 10);
         assert_eq!(list.pop_back().unwrap(), 5);
-        
+
         check_invariants(&list);
 
         assert_eq!(
@@ -1799,7 +1799,7 @@ mod tests {
         assert_eq!(list.pop_front().unwrap(), 5);
         assert_eq!(list.pop_front().unwrap(), 10);
         assert_eq!(list.pop_front().unwrap(), 15);
-        
+
         check_invariants(&list);
 
         assert_eq!(
