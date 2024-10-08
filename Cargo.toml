@@ -1,6 +1,6 @@
 [package]
 name = "indexlist1"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 authors = ["Bijan Nazem <https://github.com/bijanvan>", "steveklabnik <steve@steveklabnik.com>"]
