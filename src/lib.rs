@@ -856,17 +856,17 @@ impl<T> IndexList<T> {
     /// let mut list = indexlist::IndexList::new();
     /// list.push_back(5);
     /// list.push_back(10);
-    /// for item in list.iter_own() {
+    /// for item in list.into_iter() {
     ///     println!("{}", item);
     /// }
     /// ```
-    pub fn iter_own(self) -> IterOwn<T> {
+    pub fn into_iter(self) -> IntoIter<T> {
         if let Some(head) = self.head {
             if let Some(generation) = self.contents.get(head).and_then(|e| match e {
                 Occupied(oc) => Some(oc.generation),
                 _ => None,
             }) {
-                IterOwn {
+                IntoIter {
                     list: self,
                     index: Some(Index::new(head, generation)),
                 }
@@ -874,7 +874,7 @@ impl<T> IndexList<T> {
                 panic!("Corrupted list");
             }
         } else {
-            IterOwn {
+            IntoIter {
                 list: self,
                 index: None,
             }
@@ -985,19 +985,19 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 impl<T> IntoIterator for IndexList<T> {
     type Item = T;
 
-    type IntoIter = IterOwn<T>;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter_own()
+        self.into_iter()
     }
 }
 
-pub struct IterOwn<T> {
+pub struct IntoIter<T> {
     list: IndexList<T>,
     index: Option<Index<T>>,
 }
 
-impl<T> Iterator for IterOwn<T> {
+impl<T> Iterator for IntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1559,7 +1559,7 @@ mod tests {
         list.remove(ten);
         check_invariants(&list);
 
-        let mut iter = list.iter_own();
+        let mut iter = list.into_iter();
 
         assert_eq!(iter.next().unwrap(), 5);
         assert_eq!(iter.next().unwrap(), 15);
