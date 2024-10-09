@@ -256,6 +256,42 @@ impl<T> IndexList<T> {
         })
     }
 
+    /// Returns a reference to the last element in the list, or `None` if the list is empty.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use indexlist::IndexList;
+    /// let mut list = indexlist::IndexList::new();
+    /// list.push_back(5);
+    /// assert_eq!(list.tail(), Some(&5));
+    /// list.pop_front();
+    /// assert!(list.tail().is_none());
+    /// ```
+    pub fn tail(&self) -> Option<&T> {
+        self.contents.get(self.tail?).and_then(|e| match e {
+            Occupied(oc) => Some(&oc.item),
+            _ => None,
+        })
+    }
+
+    /// Returns a mutable reference to the last element in the list, or `None` if the list is empty.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use indexlist::IndexList;
+    /// let mut list = indexlist::IndexList::new();
+    /// list.push_back(5);
+    /// assert_eq!(list.tail_mut(), Some(&mut 5));
+    /// *list.tail_mut().unwrap() = 10;
+    /// assert_eq!(list.tail().unwrap(), &10);
+    /// ```
+    pub fn tail_mut(&mut self) -> Option<&mut T> {
+        self.contents.get_mut(self.tail?).and_then(|e| match e {
+            Occupied(oc) => Some(&mut oc.item),
+            _ => None,
+        })
+    }
+
     /// Returns the generational index of the last element in the list, or `None` if the list is empty.
     ///
     /// # Examples
